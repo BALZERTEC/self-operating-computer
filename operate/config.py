@@ -35,6 +35,8 @@ class Config:
     def __init__(self):
         load_dotenv()
         self.verbose = False
+        self.model_provider = os.getenv("MODEL_PROVIDER")
+        self.model_name = os.getenv("MODEL_NAME")
         self.openai_api_key = (
             None  # instance variables are backups in case saving to a `.env` fails
         )
@@ -155,7 +157,7 @@ class Config:
         else:
             available_models = getattr(models_response, "models", [])
 
-        model_names = [model.get("name") for model in available_models if model.get("name")]
+        model_names = [available_model.get("name") for available_model in available_models if available_model.get("name")]
 
         if not model_names:
             sys.exit(
@@ -186,20 +188,25 @@ class Config:
             api_key = os.getenv("ANTHROPIC_API_KEY")
         return anthropic.Anthropic(api_key=api_key)
 
-    def validation(self, model, voice_mode):
+    def validation(self, model, voice_mode, provider=None):
         """
         Validate the input parameters for the dialog operation.
         """
-        self.require_api_key(
-            "OPENAI_API_KEY",
-            "OpenAI API key",
-            model == "gpt-4"
-            or voice_mode
-            or model == "gpt-4-with-som"
-            or model == "gpt-4-with-ocr"
-            or model == "gpt-4.1-with-ocr"
-            or model == "o1-with-ocr",
-        )
+        provider = provider or self.model_provider
+
+        if provider == "ollama":
+            self._validate_ollama_settings(model)
+        else:
+            self.require_api_key(
+                "OPENAI_API_KEY",
+                "OpenAI API key",
+                model == "gpt-4"
+                or voice_mode
+                or model == "gpt-4-with-som"
+                or model == "gpt-4-with-ocr"
+                or model == "gpt-4.1-with-ocr"
+                or model == "o1-with-ocr",
+            )
         self.require_api_key(
             "GOOGLE_API_KEY", "Google API key", model == "gemini-pro-vision"
         )
@@ -243,3 +250,40 @@ class Config:
     def save_api_key_to_env(key_name, key_value):
         with open(".env", "a") as file:
             file.write(f"\n{key_name}='{key_value}'")
+
+    def _validate_ollama_settings(self, model):
+        self.ollama_host = os.getenv("OLLAMA_HOST") or self.ollama_host
+        self.model_name = model or self.model_name
+
+        if not self.ollama_host:
+            sys.exit(
+                "Ollama provider selected but no OLLAMA_HOST configured. Run the CLI with --provider ollama to set it up."
+            )
+        try:
+            client = Client(host=self.ollama_host)
+            models_response = client.list()
+        except Exception as exc:
+            sys.exit(
+                f"Could not connect to Ollama at {self.ollama_host}. Please ensure the server is running. Error: {exc}"
+            )
+
+        if isinstance(models_response, dict):
+            available_models = models_response.get("models", [])
+        else:
+            available_models = getattr(models_response, "models", [])
+
+        model_names = [
+            available_model.get("name")
+            for available_model in available_models
+            if available_model.get("name")
+        ]
+
+        if not model_names:
+            sys.exit(
+                f"No models available on Ollama server at {self.ollama_host}. Pull a model and try again."
+            )
+
+        if self.model_name and self.model_name not in model_names:
+            sys.exit(
+                f"Configured Ollama model '{self.model_name}' not available on {self.ollama_host}. Update your configuration or pull the model."
+            )
