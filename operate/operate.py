@@ -30,7 +30,7 @@ config = Config()
 operating_system = OperatingSystem()
 
 
-def main(model, terminal_prompt, voice_mode=False, verbose_mode=False):
+def main(provider, model, terminal_prompt, voice_mode=False, verbose_mode=False):
     """
     Main function for the Self-Operating Computer.
 
@@ -47,7 +47,7 @@ def main(model, terminal_prompt, voice_mode=False, verbose_mode=False):
     # Initialize `WhisperMic`, if `voice_mode` is True
 
     config.verbose = verbose_mode
-    config.validation(model, voice_mode)
+    config.validation(model, voice_mode, provider=provider)
 
     if voice_mode:
         try:
@@ -109,7 +109,7 @@ def main(model, terminal_prompt, voice_mode=False, verbose_mode=False):
             print("[Self Operating Computer] loop_count", loop_count)
         try:
             operations, session_id = asyncio.run(
-                get_next_action(model, messages, objective, session_id)
+                get_next_action(provider, model, messages, objective, session_id)
             )
 
             stop = operate(operations, model)

@@ -31,10 +31,13 @@ from operate.utils.style import ANSI_BRIGHT_MAGENTA, ANSI_GREEN, ANSI_RED, ANSI_
 config = Config()
 
 
-async def get_next_action(model, messages, objective, session_id):
+async def get_next_action(provider, model, messages, objective, session_id):
     if config.verbose:
         print("[Self-Operating Computer][get_next_action]")
         print("[Self-Operating Computer][get_next_action] model", model)
+        print("[Self-Operating Computer][get_next_action] provider", provider)
+    provider = provider or config.model_provider
+    model = model or config.model_name
     if model == "gpt-4":
         return call_gpt_4o(messages), None
     if model == "qwen-vl":
@@ -56,8 +59,8 @@ async def get_next_action(model, messages, objective, session_id):
         return "coming soon"
     if model == "gemini-pro-vision":
         return call_gemini_pro_vision(messages, objective), None
-    if model == "llava":
-        operation = call_ollama_llava(messages)
+    if provider == "ollama":
+        operation = call_ollama_model(messages, model)
         return operation, None
     if model == "claude-3":
         operation = await call_claude_3_with_ocr(messages, objective, model)
@@ -787,9 +790,9 @@ async def call_gpt_4o_labeled(messages, objective, model):
         return call_gpt_4o(messages)
 
 
-def call_ollama_llava(messages):
+def call_ollama_model(messages, model_name=None):
     if config.verbose:
-        print("[call_ollama_llava]")
+        print("[call_ollama_model]")
     time.sleep(1)
     try:
         model = config.initialize_ollama()
@@ -808,7 +811,7 @@ def call_ollama_llava(messages):
 
         if config.verbose:
             print(
-                "[call_ollama_llava] user_prompt",
+                "[call_ollama_model] user_prompt",
                 user_prompt,
             )
 
@@ -820,7 +823,7 @@ def call_ollama_llava(messages):
         messages.append(vision_message)
 
         response = model.chat(
-            model="llava",
+            model=model_name or config.model_name or "llava",
             messages=messages,
         )
 
@@ -836,7 +839,7 @@ def call_ollama_llava(messages):
         assistant_message = {"role": "assistant", "content": content}
         if config.verbose:
             print(
-                "[call_ollama_llava] content",
+                "[call_ollama_model] content",
                 content,
             )
         content = json.loads(content)
@@ -853,7 +856,7 @@ def call_ollama_llava(messages):
 
     except Exception as e:
         print(
-            f"{ANSI_GREEN}[Self-Operating Computer]{ANSI_BRIGHT_MAGENTA}[llava] That did not work. Trying again {ANSI_RESET}",
+            f"{ANSI_GREEN}[Self-Operating Computer]{ANSI_BRIGHT_MAGENTA}[{model_name or 'ollama'}] That did not work. Trying again {ANSI_RESET}",
             e,
         )
         print(
@@ -862,7 +865,7 @@ def call_ollama_llava(messages):
         )
         if config.verbose:
             traceback.print_exc()
-        return call_ollama_llava(messages)
+        return call_ollama_model(messages, model_name=model_name)
 
 
 async def call_claude_3_with_ocr(messages, objective, model):

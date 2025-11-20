@@ -19,30 +19,32 @@ PROVIDER_DEFAULTS = {
 }
 
 CONFIG_PATH = Path(".env")
+config = Config()
 
 
 def _persist_choice(provider: str, model: str) -> None:
     set_key(str(CONFIG_PATH), "MODEL_PROVIDER", provider)
     set_key(str(CONFIG_PATH), "MODEL_NAME", model)
+    config.model_provider = provider
+    config.model_name = model
 
 
 def _load_saved_choice():
     load_dotenv()
-    provider = os.getenv("MODEL_PROVIDER")
-    model = os.getenv("MODEL_NAME")
+    provider = os.getenv("MODEL_PROVIDER") or config.model_provider
+    model = os.getenv("MODEL_NAME") or config.model_name
     if provider not in PROVIDER_DEFAULTS:
         provider = None
     if not model:
         model = None
-    elif provider and model:
-        return provider, model
-    if provider:
-        return provider, PROVIDER_DEFAULTS[provider]
-    return None, None
+    if provider and not model:
+        model = PROVIDER_DEFAULTS[provider]
+    config.model_provider = provider
+    config.model_name = model
+    return provider, model
 
 
 def _prompt_for_provider():
-    config = Config()
     selection = radiolist_dialog(
         title="Model Provider",
         text="Which provider would you like to use?",
@@ -65,7 +67,6 @@ def _prompt_for_provider():
 
 
 def main_entry():
-    config = Config()
     saved_provider, saved_model = _load_saved_choice()
 
     if saved_provider is None:
@@ -112,11 +113,15 @@ def main_entry():
 
     try:
         args = parser.parse_args()
+        config.model_provider = args.provider
+        config.model_name = args.model
         if args.provider == "ollama":
             args.model = config.configure_ollama(preferred_model=args.model)
+            config.model_name = args.model
         if args.provider != saved_provider or args.model != saved_model:
             _persist_choice(args.provider, args.model)
         main(
+            args.provider,
             args.model,
             terminal_prompt=args.prompt,
             voice_mode=args.voice,
