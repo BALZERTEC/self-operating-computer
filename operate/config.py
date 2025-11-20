@@ -1,12 +1,16 @@
 import os
 import sys
 
+import anthropic
 import google.generativeai as genai
-from dotenv import load_dotenv
+from prompt_toolkit.shortcuts import input_dialog
+from prompt_toolkit.shortcuts import radiolist_dialog
+from dotenv import load_dotenv, set_key
+from pathlib import Path
 from ollama import Client
 from openai import OpenAI
-import anthropic
-from prompt_toolkit.shortcuts import input_dialog
+
+from operate.utils.style import style
 
 
 class Config:
@@ -46,6 +50,7 @@ class Config:
         self.qwen_api_key = (
             None  # instance variables are backups in case saving to a `.env` fails
         )
+        self.env_path = Path(".env")
 
     def initialize_openai(self):
         if self.verbose:
@@ -120,6 +125,59 @@ class Config:
             self.ollama_host = os.getenv("OLLAMA_HOST", None)
         model = Client(host=self.ollama_host)
         return model
+
+    def configure_ollama(self, preferred_model=None):
+        load_dotenv()
+        self.ollama_host = os.getenv("OLLAMA_HOST") or self.ollama_host
+        if not self.ollama_host:
+            host = input_dialog(
+                title="Ollama Host", text="Please enter your Ollama server URL:"
+            ).run()
+            if host is None:
+                sys.exit("Operation cancelled by user.")
+            host = host.strip()
+            if not host:
+                sys.exit("Ollama host cannot be empty.")
+            self.ollama_host = host
+            set_key(str(self.env_path), "OLLAMA_HOST", self.ollama_host)
+            load_dotenv()
+
+        try:
+            client = Client(host=self.ollama_host)
+            models_response = client.list()
+        except Exception as exc:
+            sys.exit(
+                f"Could not connect to Ollama at {self.ollama_host}. Please ensure the server is running. Error: {exc}"
+            )
+
+        if isinstance(models_response, dict):
+            available_models = models_response.get("models", [])
+        else:
+            available_models = getattr(models_response, "models", [])
+
+        model_names = [model.get("name") for model in available_models if model.get("name")]
+
+        if not model_names:
+            sys.exit(
+                f"No models available on Ollama server at {self.ollama_host}. Pull a model and try again."
+            )
+
+        if preferred_model and preferred_model in model_names:
+            chosen_model = preferred_model
+        else:
+            selection = radiolist_dialog(
+                title="Ollama Model",
+                text="Select an Ollama model to use:",
+                values=[(model_name, model_name) for model_name in model_names],
+                style=style,
+            ).run()
+
+            if selection is None:
+                sys.exit("Operation cancelled by user.")
+
+            chosen_model = selection
+
+        return chosen_model
 
     def initialize_anthropic(self):
         if self.anthropic_api_key:
