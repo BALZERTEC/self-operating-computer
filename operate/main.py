@@ -8,6 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv, set_key
 from prompt_toolkit.shortcuts import radiolist_dialog
 
+from operate.config import Config
 from operate.utils.style import ANSI_BRIGHT_MAGENTA, style
 from operate.operate import main
 
@@ -41,6 +42,7 @@ def _load_saved_choice():
 
 
 def _prompt_for_provider():
+    config = Config()
     selection = radiolist_dialog(
         title="Model Provider",
         text="Which provider would you like to use?",
@@ -54,12 +56,16 @@ def _prompt_for_provider():
     if selection is None:
         raise SystemExit("Operation cancelled by user.")
 
-    model = PROVIDER_DEFAULTS[selection]
+    if selection == "ollama":
+        model = config.configure_ollama(preferred_model=PROVIDER_DEFAULTS[selection])
+    else:
+        model = PROVIDER_DEFAULTS[selection]
     _persist_choice(selection, model)
     return selection, model
 
 
 def main_entry():
+    config = Config()
     saved_provider, saved_model = _load_saved_choice()
 
     if saved_provider is None:
@@ -106,6 +112,8 @@ def main_entry():
 
     try:
         args = parser.parse_args()
+        if args.provider == "ollama":
+            args.model = config.configure_ollama(preferred_model=args.model)
         if args.provider != saved_provider or args.model != saved_model:
             _persist_choice(args.provider, args.model)
         main(
