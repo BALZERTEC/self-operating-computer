@@ -38,7 +38,7 @@ BALZERTEC FORK:
 Install - [Python3.12](https://www.python.org/ftp/python/3.12.6/python-3.12.6-amd64.exe)
 Install with "ADD python.exe to PATH"
 ```
-python3 -m venv venv
+python.exe -m venv venv
 ```
 ```
 \venv\Scripts\Activate.ps1
