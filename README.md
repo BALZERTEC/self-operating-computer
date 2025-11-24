@@ -30,8 +30,24 @@ https://github.com/OthersideAI/self-operating-computer/assets/42594239/9e8abc96-
 ## Run `Self-Operating Computer`
 
 1. **Install the project**
+Standard:
 ```
 pip install self-operating-computer
+```
+BALZERTEC FORK:
+Install - [Python3.12](https://www.python.org/ftp/python/3.12.6/python-3.12.6-amd64.exe)
+Install with "ADD python.exe to PATH"
+```
+python3 -m venv venv
+```
+```
+\venv\Scripts\Activate.ps1
+```
+```
+pip install -r requirements.txt
+```
+```
+pip install .
 ```
 2. **Run the project**
 ```
