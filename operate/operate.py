@@ -116,6 +116,14 @@ def main(provider, model, terminal_prompt, voice_mode=False, verbose_mode=False)
             if stop:
                 break
 
+            ui_delay = config.post_operation_delay
+            if ui_delay > 0:
+                if config.verbose:
+                    print(
+                        f"[Self Operating Computer] Waiting {ui_delay} seconds for UI to update before requesting the next action."
+                    )
+                time.sleep(ui_delay)
+
             loop_count += 1
             if loop_count > 10:
                 break
