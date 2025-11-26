@@ -37,6 +37,7 @@ class Config:
         self.verbose = False
         self.model_provider = os.getenv("MODEL_PROVIDER")
         self.model_name = os.getenv("MODEL_NAME")
+        self.post_operation_delay = float(os.getenv("POST_OPERATION_DELAY", "1.5"))
         self.openai_api_key = (
             None  # instance variables are backups in case saving to a `.env` fails
         )
